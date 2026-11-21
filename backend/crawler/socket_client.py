@@ -3,8 +3,37 @@ import socket
 hostName='example.com'
 port = 80
 
+#cuts raw bytes into status code, headers, body
+def parse_response(raw):
+    head, _, body = raw.partition(b"\r\n\r\n")
+    lines = head.decode("iso-8859-1").split("\r\n")
+
+    status_line = lines[0]
+    status_code = int(status_line.split(" ", 2)[1])
+
+    headers = {}
+    for line in lines[1:]:
+        name, _, value = line.partition(":")
+        headers[name.strip().lower()] = value.strip()
+
+    return status_code, headers, body
+
+
+#remove size labels from chunked body
+def decode_chunked(body):
+    result = b""
+    while body:
+        size_line, _, body = body.partition(b"\r\n")
+        size = int(size_line.split(b";")[0], 16)
+        if size == 0:
+            break
+        result += body[:size]
+        body = body[size + 2:]
+    return result
+
+
 s = socket.socket()
-#s.settimeout(10)
+s.settimeout(10)
 s.connect((hostName,port))
 
 print(f"Connect to : {s.getpeername()}")
@@ -19,10 +48,18 @@ while True:
         break
     response += chunk
 
-# print(response.decode("utf-8", errors="replace"))
+#response=response.decode("utf-8", errors="replace")
+status_code , headers, body = parse_response(response)
+unchunked_body = decode_chunked(body)
+print(f"Raw response: {response}")
+print()
+print(f"Status code: {status_code}")
+print()
+print(f"Chunked Body: {body}")
+print()
+print(f"Unchunked body: {unchunked_body}")
 
-def get_html():
-  return response
+
 
 s.close()
 
