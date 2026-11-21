@@ -1,15 +1,23 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
 import './App.css'
+import { useEffect , useState } from 'react'
 
 function App() {
   
+  const [msg , setMsg] = useState('Loading...');
+
+  useEffect(()=>{
+    async function load() {
+      const res = await fetch("http://127.0.0.1:8000/get_html");
+      const data = await res.json()
+      setMsg(data.message)
+      console.log(data)
+    }
+    load();
+  },[])
 
   return (
-    <h1>Frontend of Droppin</h1>
-      
+    {msg}
+    
   )
 }
 
