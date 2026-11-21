@@ -7,7 +7,7 @@ function App() {
 
   useEffect(()=>{
     async function load() {
-      const res = await fetch("http://127.0.0.1:8000/get_html");
+      const res = await fetch("http://127.0.0.1:8000");
       const data = await res.json()
       setMsg(data.message)
       console.log(data)
@@ -16,7 +16,7 @@ function App() {
   },[])
 
   return (
-    {msg}
+    <h1>{msg}</h1>
     
   )
 }
