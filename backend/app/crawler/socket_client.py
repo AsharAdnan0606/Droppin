@@ -34,7 +34,7 @@ def decode_chunked(body):
 
 
 
-def get_html(host, port=443, use_tls=True):
+def get_html(host, path="/", port=443, use_tls=True):
     s = socket.socket()
     s.settimeout(10)
     s.connect((host, port))
@@ -43,9 +43,8 @@ def get_html(host, port=443, use_tls=True):
         context = ssl.create_default_context(cafile=certifi.where())
         s = context.wrap_socket(s, server_hostname=host)
 
-    print(f"Connect to : {s.getpeername()}")
-
-    request = f"GET / HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+    # print(f"Connect to : {s.getpeername()}")
+    request = f"GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
     s.sendall(request.encode("utf-8"))
 
     response = b""
@@ -54,19 +53,27 @@ def get_html(host, port=443, use_tls=True):
       if not chunk:
         break
       response += chunk
-
+    s.close()
     #response=response.decode("utf-8", errors="replace")
 
     status_code , headers, body = parse_response(response)
-    unchunked_body = decode_chunked(body)
-    print(f"Raw response: {response}")
-    print()
-    print(f"Status code: {status_code}")
-    print()
-    print(f"Chunked Body: {body}")
-    print()
-    print(f"Unchunked body: {unchunked_body}")
+    if "chunked" in headers.get("transfer-encoding", "").lower():
+        body = decode_chunked(body)
 
-    s.close()
+    # print(f"Raw response: {response}")
+    # print()
+    # print(f"Status code: {status_code}")
+    # print()
+    # print(f"Chunked Body: {body}")
+    # print()
+    # print(f"Unchunked body: {unchunked_body}")
 
-get_html("example.com")
+    return status_code, headers, body
+
+
+#test block
+if __name__ == "__main__":
+    status, headers, body = get_html("example.com")
+    print("status:", status)
+    print("content-type:", headers.get("content-type"))
+    print(body.decode("utf-8", errors="replace")[:200])
