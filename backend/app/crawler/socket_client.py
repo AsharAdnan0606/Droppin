@@ -1,6 +1,7 @@
 import socket
+import ssl
+import certifi
 
-hostName='example.com'
 port = 80
 
 #cuts raw bytes into status code, headers, body
@@ -32,34 +33,40 @@ def decode_chunked(body):
     return result
 
 
-s = socket.socket()
-s.settimeout(10)
-s.connect((hostName,port))
 
-print(f"Connect to : {s.getpeername()}")
+def get_html(host, port=443, use_tls=True):
+    s = socket.socket()
+    s.settimeout(10)
+    s.connect((host, port))
 
-request = f"GET / HTTP/1.1\r\nHost: {hostName}\r\nConnection: close\r\n\r\n"
-s.sendall(request.encode("utf-8"))
+    if use_tls:
+        context = ssl.create_default_context(cafile=certifi.where())
+        s = context.wrap_socket(s, server_hostname=host)
 
-response = b""
-while True:
-    chunk = s.recv(4096)
-    if not chunk:
+    print(f"Connect to : {s.getpeername()}")
+
+    request = f"GET / HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+    s.sendall(request.encode("utf-8"))
+
+    response = b""
+    while True:
+      chunk = s.recv(4096)
+      if not chunk:
         break
-    response += chunk
+      response += chunk
 
-#response=response.decode("utf-8", errors="replace")
-status_code , headers, body = parse_response(response)
-unchunked_body = decode_chunked(body)
-print(f"Raw response: {response}")
-print()
-print(f"Status code: {status_code}")
-print()
-print(f"Chunked Body: {body}")
-print()
-print(f"Unchunked body: {unchunked_body}")
+    #response=response.decode("utf-8", errors="replace")
 
+    status_code , headers, body = parse_response(response)
+    unchunked_body = decode_chunked(body)
+    print(f"Raw response: {response}")
+    print()
+    print(f"Status code: {status_code}")
+    print()
+    print(f"Chunked Body: {body}")
+    print()
+    print(f"Unchunked body: {unchunked_body}")
 
+    s.close()
 
-s.close()
-
+get_html("example.com")
