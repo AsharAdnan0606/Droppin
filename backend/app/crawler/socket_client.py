@@ -101,18 +101,17 @@ def fetch_url(url, max_redirects=5):
 
 #test block
 if __name__ == "__main__":
-    url = "https://www.amazon.com/New-Balance-Womens-Sneaker-Reflection/dp/B0FX5FBLCD?psc=1"
+    url = "http://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
     status, headers, body, final_url = fetch_url(url)
-    print(headers.get("content-encoding"))
     html = body.decode("utf-8", errors="replace")
-    t = re.search(r"<title>(.*?)</title>", html, re.DOTALL)
-    print("page title:", t.group(1).strip() if t else None)
-    print(html[:400])
-    print("length:", len(html))
-    print("has productTitle:", "productTitle" in html)
-    i = html.find("productTitle")
-    print(i)
-    print(repr(html[i - 50:i + 250]))
+
+    for marker in ["<h1>", "price_color", "<img"]:
+        i = html.find(marker)
+        print(marker, "->", i)
+        if i != -1:
+            print(html[max(i - 40, 0):i + 200])
+        print("-----")
 
     print(status, final_url)
-    print("title:", extract_title(html))
+    print("length:", len(html))
+    print(html[:300])

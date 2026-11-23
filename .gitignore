@@ -6,3 +6,6 @@ __pycache__/
 # Secrets
 .env
 .env.*
+
+#test file
+*_test.html
