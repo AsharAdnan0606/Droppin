@@ -1,8 +1,12 @@
 import socket
 import ssl
 import certifi
+from urllib.parse import urlparse, urljoin
+import re
+from html import unescape
 
 port = 80
+
 
 #cuts raw bytes into status code, headers, body
 def parse_response(raw):
@@ -32,6 +36,11 @@ def decode_chunked(body):
         body = body[size + 2:]
     return result
 
+def extract_title(html):
+    m = re.search(r'id="productTitle"[^>]*>(.*?)</span>', html, re.DOTALL)
+    if not m:
+        return None
+    return unescape(m.group(1)).strip()
 
 
 def get_html(host, path="/", port=443, use_tls=True):
@@ -44,7 +53,13 @@ def get_html(host, path="/", port=443, use_tls=True):
         s = context.wrap_socket(s, server_hostname=host)
 
     # print(f"Connect to : {s.getpeername()}")
-    request = f"GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+    request = (
+    f"GET {path} HTTP/1.1\r\n"
+    f"Host: {host}\r\n"
+    f"Accept-Encoding: identity\r\n"
+    f"Connection: close\r\n\r\n"
+    )
+
     s.sendall(request.encode("utf-8"))
 
     response = b""
@@ -60,20 +75,44 @@ def get_html(host, path="/", port=443, use_tls=True):
     if "chunked" in headers.get("transfer-encoding", "").lower():
         body = decode_chunked(body)
 
-    # print(f"Raw response: {response}")
-    # print()
-    # print(f"Status code: {status_code}")
-    # print()
-    # print(f"Chunked Body: {body}")
-    # print()
-    # print(f"Unchunked body: {unchunked_body}")
-
     return status_code, headers, body
 
 
+def fetch_url(url, max_redirects=5):
+    for _ in range(max_redirects + 1):
+        parts = urlparse(url)
+        use_tls = parts.scheme == "https"
+        host = parts.hostname
+        port = parts.port or (443 if use_tls else 80)
+        path = parts.path or "/"
+        if parts.query:
+            path += "?" + parts.query
+
+        status, headers, body = get_html(host, path, port, use_tls)
+
+        if status in (301, 302, 303, 307, 308) and "location" in headers:
+            url = urljoin(url, headers["location"])
+            print("redirect ->", url)
+            continue
+
+        return status, headers, body, url
+
+    raise RuntimeError("Too many redirects")
+
 #test block
 if __name__ == "__main__":
-    status, headers, body = get_html("example.com")
-    print("status:", status)
-    print("content-type:", headers.get("content-type"))
-    print(body.decode("utf-8", errors="replace")[:200])
+    url = "https://www.amazon.com/New-Balance-Womens-Sneaker-Reflection/dp/B0FX5FBLCD?psc=1"
+    status, headers, body, final_url = fetch_url(url)
+    print(headers.get("content-encoding"))
+    html = body.decode("utf-8", errors="replace")
+    t = re.search(r"<title>(.*?)</title>", html, re.DOTALL)
+    print("page title:", t.group(1).strip() if t else None)
+    print(html[:400])
+    print("length:", len(html))
+    print("has productTitle:", "productTitle" in html)
+    i = html.find("productTitle")
+    print(i)
+    print(repr(html[i - 50:i + 250]))
+
+    print(status, final_url)
+    print("title:", extract_title(html))
